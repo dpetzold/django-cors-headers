@@ -92,21 +92,28 @@ class CorsMiddleware:
             enabled = self.is_enabled(request)
 
         if not enabled:
+            print("cors is not enabled")
             return response
 
         patch_vary_headers(response, ("origin",))
 
         origin = request.headers.get("origin")
         if not origin:
+            print("no origin")
             return response
 
         try:
             url = urlsplit(origin)
         except ValueError:
+            print(f"bad origin: {origin}")
             return response
 
         if conf.CORS_ALLOW_CREDENTIALS:
             response[ACCESS_CONTROL_ALLOW_CREDENTIALS] = "true"
+
+        whitelisted = self.origin_found_in_white_lists(origin, url)
+
+        print(f"whitelisted={whitelisted},origin={origin},url={url}")
 
         if (
             not conf.CORS_ALLOW_ALL_ORIGINS
@@ -153,6 +160,10 @@ class CorsMiddleware:
         )
 
     def is_enabled(self, request: HttpRequest) -> bool:
+        matched = re.match(conf.CORS_URLS_REGEX, request.path_info)
+        print(
+            f"regex={conf.CORS_URLS_REGEX},path={request.path_info},matched={matched}"
+        )
         return bool(
             re.match(conf.CORS_URLS_REGEX, request.path_info)
         ) or self.check_signal(request)
